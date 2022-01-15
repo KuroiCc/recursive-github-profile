@@ -16,6 +16,15 @@ let argv = require("yargs")
   .describe("d", "depth of recursion")
   .alias("d", "depth")
   .default("d", 3)
+  .alias("cm", "color-mode")
+  .describe("cm", "color mode of Github, expect 'auto', 'light' or 'dark'")
+  .default("cm", "auto")
+  .alias("b", "branch")
+  .describe("b", "branch of your profile repo")
+  .default("b", "master")
+  .alias("w", "waiting-time")
+  .describe("w", "next screenshot waiting time in seconds")
+  .default("w", 10)
   .help("h")
   .alias("h", "help").argv;
 
@@ -40,6 +49,14 @@ const getScreenshot = async (username, depth) => {
   await page.tap(
     "#js-pjax-container > div.container-xl.px-3.px-md-4.px-lg-5 > signup-prompt > div > div > button"
   );
+
+  let divHandle = await page.$('html')
+  await page.evaluate(
+    (el, value) => el.setAttribute('data-color-mode', value),
+    divHandle,
+    `${argv.cm}`
+  )
+
   await page.screenshot({ path: `screenshot-${depth}.png` });
   await browser.close();
 };
@@ -56,7 +73,7 @@ const getScreenshot = async (username, depth) => {
       // edit README.md
       await writeFile(
         "README.md",
-        `![Woah!](https://github.com/${argv.username}/${argv.username}/blob/master/screenshot-${d}.png)`
+        `![Woah!](https://github.com/${argv.username}/${argv.username}/blob/${argv.branch}/screenshot-${d}.png)`
       );
 
       // add to git and push
@@ -67,16 +84,17 @@ const getScreenshot = async (username, depth) => {
           "-m",
           `"adds new screenshot at depth ${d}"`,
         ]);
-        await execa("git", ["push", "-u", "origin", "master"]);
+        await execa("git", ["push", "-u", "origin", `${argv.branch}`]);
       } catch (err) {
         // console.error(err);
         console.log("An issue adding files to git occured.");
       }
 
-      console.log("Sleeping 10 seconds while github updates 😊");
-      sleep(10000);
+      console.log(`"Sleeping ${argv.w} seconds while github updates 😊"`);
+      sleep(`${argv.w * 1000}`);
 
       d--;
     }
   }
+  console.log("succeeded!");
 })();
